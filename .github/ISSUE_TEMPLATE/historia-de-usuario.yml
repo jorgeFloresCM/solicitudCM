@@ -1,0 +1,36 @@
+name: Historia de usuario
+description: Una funcionalidad nueva o un cambio de comportamiento
+title: "HU-XX · "
+labels: ["historia-de-usuario"]
+body:
+  - type: textarea
+    id: historia
+    attributes:
+      label: Historia
+      description: Como [rol], quiero [acción], para [beneficio].
+    validations:
+      required: true
+  - type: textarea
+    id: formulario
+    attributes:
+      label: Formulario / pantalla
+      description: Campos, tipo, obligatoriedad y validaciones (puedes pegar una tabla).
+  - type: textarea
+    id: criterios
+    attributes:
+      label: Criterios de aceptación
+      description: Una casilla por criterio, formato Dado / Cuando / Entonces.
+      value: |
+        - [ ] **Dado** … **cuando** … **entonces** …
+        - [ ] **Dado** … **cuando** … **entonces** …
+    validations:
+      required: true
+  - type: input
+    id: roles
+    attributes:
+      label: Roles que pueden usarlo
+  - type: textarea
+    id: notas
+    attributes:
+      label: Notas
+      description: Reglas de negocio, dudas por resolver, enlaces.
