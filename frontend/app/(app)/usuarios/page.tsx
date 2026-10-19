@@ -1,37 +1,67 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge, Button, Card, Input, Modal, Select } from "@/components/ui";
-import { Rol, USUARIOS_INICIAL, Usuario, ROLES, UNIDADES } from "@/lib/data";
+import { useCatalogos } from "@/components/hooks";
+import { api, mensajeError } from "@/lib/api";
+import { Rol, Usuario } from "@/lib/data";
 import { Pencil, Plus, UserRound } from "lucide-react";
 
+type Form = { nombre: string; correo: string; unidad: string; rol: Rol; estado: "Activo" | "Inactivo"; password: string };
+
 export default function UsuariosPage() {
-  const [usuarios, setUsuarios] = useState<Usuario[]>(USUARIOS_INICIAL);
+  const cat = useCatalogos();
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
   const [modal, setModal] = useState(false);
   const [editando, setEditando] = useState<Usuario | null>(null);
-  const [form, setForm] = useState({ nombre: "", correo: "", unidad: UNIDADES[0], rol: "Solicitante" as Rol, estado: "Activo" as "Activo" | "Inactivo" });
+  const [errorForm, setErrorForm] = useState<string | null>(null);
+  const [guardando, setGuardando] = useState(false);
+  const [form, setForm] = useState<Form>({ nombre: "", correo: "", unidad: "", rol: "Solicitante", estado: "Activo", password: "" });
+
+  const cargar = () =>
+    api<Usuario[]>("/usuarios").then(setUsuarios).catch((e) => setErrorCarga(mensajeError(e)));
+  useEffect(() => {
+    cargar();
+  }, []);
 
   const abrirCrear = () => {
     setEditando(null);
-    setForm({ nombre: "", correo: "", unidad: UNIDADES[0], rol: "Solicitante", estado: "Activo" });
+    setErrorForm(null);
+    setForm({ nombre: "", correo: "", unidad: cat?.unidades[0] ?? "", rol: "Solicitante", estado: "Activo", password: "" });
     setModal(true);
   };
 
   const abrirEditar = (u: Usuario) => {
     setEditando(u);
-    setForm({ nombre: u.nombre, correo: u.correo, unidad: u.unidad, rol: u.rol, estado: u.estado });
+    setErrorForm(null);
+    setForm({ nombre: u.nombre, correo: u.correo, unidad: u.unidad, rol: u.rol, estado: u.estado, password: "" });
     setModal(true);
   };
 
-  const guardar = (e: React.FormEvent) => {
+  const guardar = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editando) {
-      setUsuarios((prev) => prev.map((u) => (u.id === editando.id ? { ...u, ...form } : u)));
-    } else {
-      setUsuarios((prev) => [...prev, { id: Math.max(...prev.map((u) => u.id), 0) + 1, ...form }]);
+    setErrorForm(null);
+    setGuardando(true);
+    try {
+      const { password, ...datos } = form;
+      if (editando) {
+        // La contraseña solo se envía si se escribió una nueva
+        await api(`/usuarios/${editando.id}`, { method: "PATCH", json: password ? { ...datos, password } : datos });
+      } else {
+        await api("/usuarios", { method: "POST", json: form });
+      }
+      setModal(false);
+      await cargar();
+    } catch (err) {
+      setErrorForm(mensajeError(err));
+    } finally {
+      setGuardando(false);
     }
-    setModal(false);
   };
+
+  // Incluye siempre la unidad actual del usuario aunque ya no esté en el catálogo
+  const unidades = cat ? Array.from(new Set([...cat.unidades, ...(form.unidad ? [form.unidad] : [])])) : [];
 
   return (
     <div className="space-y-6">
@@ -40,8 +70,12 @@ export default function UsuariosPage() {
           <h1 className="text-2xl font-extrabold text-paypal-dark">Gestión de usuarios</h1>
           <p className="text-sm text-slate-500">Ver, crear y editar usuarios del sistema.</p>
         </div>
-        <Button onClick={abrirCrear}><Plus size={16} /> Nuevo usuario</Button>
+        <Button onClick={abrirCrear} disabled={!cat}><Plus size={16} /> Nuevo usuario</Button>
       </div>
+
+      {errorCarga && (
+        <div role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{errorCarga}</div>
+      )}
 
       <Card className="!p-0 overflow-hidden">
         <table className="w-full text-sm">
@@ -84,13 +118,26 @@ export default function UsuariosPage() {
 
       <Modal open={modal} onClose={() => setModal(false)} title={editando ? "Editar usuario" : "Crear usuario"}>
         <form onSubmit={guardar} className="space-y-4">
+          {errorForm && (
+            <div role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{errorForm}</div>
+          )}
           <Input label="Nombre completo" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} required />
           <Input label="Correo institucional" type="email" value={form.correo} onChange={(e) => setForm({ ...form, correo: e.target.value })} required />
+          <Input
+            label={editando ? "Nueva contraseña (dejar vacío para no cambiarla)" : "Contraseña inicial"}
+            type="password"
+            autoComplete="new-password"
+            minLength={8}
+            placeholder="Mínimo 8 caracteres"
+            value={form.password}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
+            required={!editando}
+          />
           <Select label="Unidad" value={form.unidad} onChange={(e) => setForm({ ...form, unidad: e.target.value })}>
-            {UNIDADES.map((u) => <option key={u}>{u}</option>)}
+            {unidades.map((u) => <option key={u}>{u}</option>)}
           </Select>
           <Select label="Rol" value={form.rol} onChange={(e) => setForm({ ...form, rol: e.target.value as Rol })}>
-            {ROLES.map((r) => <option key={r}>{r}</option>)}
+            {cat?.roles.map((r) => <option key={r}>{r}</option>)}
           </Select>
           <Select label="Estado" value={form.estado} onChange={(e) => setForm({ ...form, estado: e.target.value as "Activo" | "Inactivo" })}>
             <option>Activo</option>
@@ -98,7 +145,7 @@ export default function UsuariosPage() {
           </Select>
           <div className="flex justify-end gap-3 pt-2">
             <Button variant="secondary" onClick={() => setModal(false)}>Cancelar</Button>
-            <Button type="submit">Guardar</Button>
+            <Button type="submit" disabled={guardando}>{guardando ? "Guardando…" : "Guardar"}</Button>
           </div>
         </form>
       </Modal>
