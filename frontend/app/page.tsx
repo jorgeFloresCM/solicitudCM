@@ -2,18 +2,28 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Button, Input, Select } from "@/components/ui";
-import { ROLES, Rol } from "@/lib/data";
+import { Button, Input } from "@/components/ui";
+import { api, mensajeError } from "@/lib/api";
 import { ShieldCheck, Lock, Mail } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [rol, setRol] = useState<Rol>("Administrador");
+  const [correo, setCorreo] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [cargando, setCargando] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.setItem("rol", rol);
-    router.push("/dashboard");
+    setError(null);
+    setCargando(true);
+    try {
+      await api("/auth/login", { method: "POST", json: { correo, password } });
+      router.push("/dashboard");
+    } catch (err) {
+      setError(mensajeError(err));
+      setCargando(false);
+    }
   };
 
   return (
@@ -49,18 +59,35 @@ export default function LoginPage() {
             Ingresa con tus credenciales institucionales.
           </p>
 
+          {error && (
+            <div role="alert" className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+              {error}
+            </div>
+          )}
+
           <div className="space-y-4">
-            <Input label="Correo institucional" type="email" placeholder="usuario@cmag.gov.bo" required />
-            <Input label="Contraseña" type="password" placeholder="••••••••" required />
-            <Select label="Rol" value={rol} onChange={(e) => setRol(e.target.value as Rol)}>
-              {ROLES.map((r) => (
-                <option key={r}>{r}</option>
-              ))}
-            </Select>
+            <Input
+              label="Correo institucional"
+              type="email"
+              placeholder="usuario@cmag.gov.bo"
+              autoComplete="username"
+              value={correo}
+              onChange={(e) => setCorreo(e.target.value)}
+              required
+            />
+            <Input
+              label="Contraseña"
+              type="password"
+              placeholder="••••••••"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
           </div>
 
-          <Button type="submit" className="mt-8 w-full py-3 text-base">
-            <Lock size={16} /> Ingresar
+          <Button type="submit" disabled={cargando} className="mt-8 w-full py-3 text-base">
+            <Lock size={16} /> {cargando ? "Ingresando…" : "Ingresar"}
           </Button>
 
           <p className="mt-6 flex items-center justify-center gap-2 text-center text-xs text-slate-400">
