@@ -1,29 +1,25 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Badge, Card, Input, Select, StatCard } from "@/components/ui";
-import { useBoletas } from "@/components/hooks";
-import { Boleta, EstadoBoleta, UNIDADES } from "@/lib/data";
+import { useBoletas, useCatalogos } from "@/components/hooks";
+import { EstadoBoleta } from "@/lib/data";
 import { CheckCircle2, Clock3, FileText } from "lucide-react";
 
 export default function ReportesPage() {
-  const { boletas, loaded } = useBoletas();
+  const cat = useCatalogos();
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
   const [estado, setEstado] = useState<EstadoBoleta | "Todos">("Todos");
   const [unidad, setUnidad] = useState("Todas");
 
-  const filtradas: Boleta[] = useMemo(
-    () =>
-      boletas.filter(
-        (b) =>
-          (!desde || b.fecha >= desde) &&
-          (!hasta || b.fecha <= hasta) &&
-          (estado === "Todos" || b.estado === estado) &&
-          (unidad === "Todas" || b.unidad === unidad)
-      ),
-    [boletas, desde, hasta, estado, unidad]
-  );
+  // El filtrado se hace en el servidor (PostgreSQL)
+  const { boletas: filtradas, loaded, error } = useBoletas({
+    desde,
+    hasta,
+    estado: estado === "Todos" ? undefined : estado,
+    unidad: unidad === "Todas" ? undefined : unidad,
+  });
 
   if (!loaded) return null;
 
@@ -47,10 +43,14 @@ export default function ReportesPage() {
           </Select>
           <Select label="Unidad" value={unidad} onChange={(e) => setUnidad(e.target.value)}>
             <option value="Todas">Todas</option>
-            {UNIDADES.map((u) => <option key={u}>{u}</option>)}
+            {cat?.unidades.map((u) => <option key={u}>{u}</option>)}
           </Select>
         </div>
       </Card>
+
+      {error && (
+        <div role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</div>
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard title="Boletas en reporte" value={filtradas.length} icon={<FileText size={22} />} tone="blue" />

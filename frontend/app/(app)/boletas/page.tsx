@@ -1,34 +1,67 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Card, Input, Select, Textarea } from "@/components/ui";
-import { getBoletas, saveBoletas, TIPOS_ERROR, UNIDADES, Prioridad } from "@/lib/data";
+import { useCatalogos, useSession } from "@/components/hooks";
+import { api, mensajeError } from "@/lib/api";
+import { Boleta, Prioridad } from "@/lib/data";
 import { FilePlus2, Send } from "lucide-react";
 
 export default function BoletasPage() {
   const router = useRouter();
+  const me = useSession();
+  const cat = useCatalogos();
   const [form, setForm] = useState({
     solicitante: "",
-    unidad: UNIDADES[0],
-    tipoError: TIPOS_ERROR[0],
+    unidad: "",
+    tipoError: "",
     prioridad: "Media" as Prioridad,
     descripcion: "",
   });
-  const [ok, setOk] = useState(false);
+  const [archivos, setArchivos] = useState<File[]>([]);
+  const [ok, setOk] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
 
-  const enviar = (e: React.FormEvent) => {
+  // Valores por defecto: usuario en sesión y primer elemento de cada catálogo
+  useEffect(() => {
+    if (!cat) return;
+    setForm((f) => ({
+      ...f,
+      solicitante: f.solicitante || me?.nombre || "",
+      unidad: f.unidad || cat.unidades[0] || "",
+      tipoError: f.tipoError || cat.tiposError[0] || "",
+    }));
+  }, [cat, me]);
+
+  const enviar = async (e: React.FormEvent) => {
     e.preventDefault();
-    const boletas = getBoletas();
-    const nueva = {
-      id: `BOL-2026-${String(boletas.length + 1).padStart(3, "0")}`,
-      ...form,
-      fecha: new Date().toISOString().slice(0, 10),
-      estado: "Pendiente" as const,
-    };
-    saveBoletas([...boletas, nueva]);
-    setOk(true);
-    setTimeout(() => router.push("/solicitudes"), 1500);
+    setError(null);
+    setEnviando(true);
+    try {
+      const nueva = await api<Boleta>("/boletas", { method: "POST", json: form });
+
+      let avisoRespaldos = "";
+      if (archivos.length) {
+        const fd = new FormData();
+        fd.append("boletaId", nueva.id);
+        archivos.forEach((a) => fd.append("archivos", a));
+        try {
+          await api("/respaldos", { method: "POST", body: fd });
+        } catch (err) {
+          avisoRespaldos = ` Los respaldos no se pudieron subir (${mensajeError(err)}); puedes añadirlos en el módulo Respaldos.`;
+        }
+      }
+
+      setOk(`✓ Boleta ${nueva.id} registrada correctamente.${avisoRespaldos}`);
+      // Cada rol solo ve ciertas pantallas: la bandeja es para quienes atienden
+      const destino = me && ["Jefe de Sistemas", "Administrador", "Técnico"].includes(me.rol) ? "/solicitudes" : "/dashboard";
+      setTimeout(() => router.push(destino), avisoRespaldos ? 3500 : 1500);
+    } catch (err) {
+      setError(mensajeError(err));
+      setEnviando(false);
+    }
   };
 
   return (
@@ -39,9 +72,10 @@ export default function BoletasPage() {
       </div>
 
       {ok && (
-        <div className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
-          ✓ Boleta registrada correctamente. Redirigiendo a la bandeja…
-        </div>
+        <div className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">{ok}</div>
+      )}
+      {error && (
+        <div role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</div>
       )}
 
       <Card>
@@ -62,10 +96,10 @@ export default function BoletasPage() {
 
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <Select label="Unidad solicitante" value={form.unidad} onChange={(e) => setForm({ ...form, unidad: e.target.value })}>
-              {UNIDADES.map((u) => <option key={u}>{u}</option>)}
+              {cat?.unidades.map((u) => <option key={u}>{u}</option>)}
             </Select>
             <Select label="Tipo de error" value={form.tipoError} onChange={(e) => setForm({ ...form, tipoError: e.target.value })}>
-              {TIPOS_ERROR.map((t) => <option key={t}>{t}</option>)}
+              {cat?.tiposError.map((t) => <option key={t}>{t}</option>)}
             </Select>
           </div>
 
@@ -88,14 +122,22 @@ export default function BoletasPage() {
             <span className="mb-1.5 block text-sm font-semibold text-slate-700">Respaldos digitalizados (opcional)</span>
             <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-paypal-border py-8 text-slate-400 transition hover:border-paypal-blue hover:text-paypal-blue">
               <Send size={22} />
-              <span className="text-sm font-semibold">Adjuntar PDF o imágenes (puedes añadir más en el módulo Respaldos)</span>
-              <input type="file" className="hidden" multiple accept=".pdf,image/*" />
+              <span className="text-sm font-semibold">
+                {archivos.length ? `${archivos.length} archivo(s): ${archivos.map((a) => a.name).join(", ")}` : "Adjuntar PDF o imágenes (máx. 10 MB c/u)"}
+              </span>
+              <input
+                type="file"
+                className="hidden"
+                multiple
+                accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/png,image/jpeg,image/webp"
+                onChange={(e) => setArchivos(Array.from(e.target.files ?? []))}
+              />
             </label>
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
             <Button variant="secondary" type="button" onClick={() => router.back()}>Cancelar</Button>
-            <Button type="submit"><Send size={16} /> Registrar boleta</Button>
+            <Button type="submit" disabled={enviando || !cat}><Send size={16} /> {enviando ? "Registrando…" : "Registrar boleta"}</Button>
           </div>
         </form>
       </Card>

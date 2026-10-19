@@ -1,26 +1,34 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Badge, Card, StatCard } from "@/components/ui";
 import { useBoletas } from "@/components/hooks";
+import { api } from "@/lib/api";
+import { Estadisticas } from "@/lib/data";
 import { CheckCircle2, Clock3, FileText, Timer } from "lucide-react";
 
 export default function DashboardPage() {
   const { boletas, loaded } = useBoletas();
+  const [stats, setStats] = useState<Estadisticas | null>(null);
 
-  if (!loaded) return null;
+  useEffect(() => {
+    api<Estadisticas>("/estadisticas").then(setStats).catch(() => undefined);
+  }, []);
 
-  const total = boletas.length;
-  const pendientes = boletas.filter((b) => b.estado === "Pendiente").length;
-  const resueltas = boletas.filter((b) => b.estado === "Resuelta").length;
-  const tiempoProm = "1.8 días";
+  if (!loaded || !stats) return null;
 
-  const porEstado = [
+  const { total, porEstado } = stats;
+  const pendientes = porEstado["Pendiente"];
+  const resueltas = porEstado["Resuelta"];
+  const tiempoProm = stats.tiempoPromedioDias === null ? "—" : `${stats.tiempoPromedioDias.toFixed(1)} días`;
+
+  const barras = [
     { label: "Pendiente", count: pendientes, color: "bg-amber-400" },
-    { label: "Asignada", count: boletas.filter((b) => b.estado === "Asignada").length, color: "bg-paypal-blue" },
-    { label: "En atención", count: boletas.filter((b) => b.estado === "En atención").length, color: "bg-indigo-500" },
+    { label: "Asignada", count: porEstado["Asignada"], color: "bg-paypal-blue" },
+    { label: "En atención", count: porEstado["En atención"], color: "bg-indigo-500" },
     { label: "Resuelta", count: resueltas, color: "bg-emerald-500" },
   ];
-  const max = Math.max(...porEstado.map((e) => e.count), 1);
+  const max = Math.max(...barras.map((e) => e.count), 1);
 
   return (
     <div className="space-y-6">
@@ -40,7 +48,7 @@ export default function DashboardPage() {
         <Card>
           <h3 className="mb-6 font-bold text-paypal-dark">Boletas por estado</h3>
           <div className="space-y-4">
-            {porEstado.map((e) => (
+            {barras.map((e) => (
               <div key={e.label}>
                 <div className="mb-1 flex justify-between text-sm">
                   <span className="font-semibold text-slate-600">{e.label}</span>
@@ -70,7 +78,7 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {boletas.slice(-5).reverse().map((b) => (
+                {boletas.slice(0, 5).map((b) => (
                   <tr key={b.id} className="border-b border-paypal-light last:border-0">
                     <td className="py-2.5 pr-4 font-bold text-paypal-blue">{b.id}</td>
                     <td className="py-2.5 pr-4 text-slate-600">{b.solicitante}</td>

@@ -2,28 +2,28 @@
 
 import { useState } from "react";
 import { Badge, Card, Select } from "@/components/ui";
-import { useBoletas } from "@/components/hooks";
-import { Boleta, EstadoBoleta, TECNICOS } from "@/lib/data";
+import { useBoletas, useCatalogos } from "@/components/hooks";
+import { mensajeError } from "@/lib/api";
+import { Boleta, EstadoBoleta } from "@/lib/data";
 import { Inbox } from "lucide-react";
 
 const ESTADOS: EstadoBoleta[] = ["Pendiente", "Asignada", "En atención", "Resuelta"];
 
 export default function SolicitudesPage() {
-  const { boletas, update } = useBoletas();
+  const { boletas, actualizar, error: errorCarga } = useBoletas();
+  const cat = useCatalogos();
   const [filtro, setFiltro] = useState<EstadoBoleta | "Todas">("Todas");
+  const [error, setError] = useState<string | null>(null);
 
   const visibles = filtro === "Todas" ? boletas : boletas.filter((b) => b.estado === filtro);
 
-  const asignar = (id: string, tecnico: string) => {
-    update(
-      boletas.map((b) =>
-        b.id === id ? { ...b, tecnico, estado: b.estado === "Pendiente" ? "Asignada" : b.estado } : b
-      )
-    );
-  };
-
-  const cambiarEstado = (id: string, estado: EstadoBoleta) => {
-    update(boletas.map((b) => (b.id === id ? { ...b, estado } : b)));
+  const guardar = async (id: string, cambios: { tecnicoId?: number; estado?: EstadoBoleta }) => {
+    setError(null);
+    try {
+      await actualizar(id, cambios);
+    } catch (e) {
+      setError(mensajeError(e));
+    }
   };
 
   return (
@@ -45,6 +45,10 @@ export default function SolicitudesPage() {
           </select>
         </div>
       </div>
+
+      {(error || errorCarga) && (
+        <div role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error ?? errorCarga}</div>
+      )}
 
       <div className="space-y-4">
         {visibles.length === 0 && (
@@ -69,15 +73,15 @@ export default function SolicitudesPage() {
 
               <div className="flex w-full flex-col gap-2 sm:w-56">
                 <Select
-                  value={b.tecnico ?? ""}
-                  onChange={(e) => asignar(b.id, e.target.value)}
+                  value={b.tecnicoId ?? ""}
+                  onChange={(e) => guardar(b.id, { tecnicoId: Number(e.target.value) })}
                 >
                   <option value="" disabled>Asignar técnico…</option>
-                  {TECNICOS.map((t) => <option key={t}>{t}</option>)}
+                  {cat?.tecnicos.map((t) => <option key={t.id} value={t.id}>{t.nombre}</option>)}
                 </Select>
                 <Select
                   value={b.estado}
-                  onChange={(e) => cambiarEstado(b.id, e.target.value as EstadoBoleta)}
+                  onChange={(e) => guardar(b.id, { estado: e.target.value as EstadoBoleta })}
                 >
                   {ESTADOS.map((e) => <option key={e}>{e}</option>)}
                 </Select>
