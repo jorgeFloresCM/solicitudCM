@@ -1,36 +1,57 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Badge, Button, Card, Modal } from "@/components/ui";
-import { getRespaldos, Respaldo, saveRespaldos } from "@/lib/data";
+import { Badge, Button, Card, Modal, Select } from "@/components/ui";
+import { useBoletas } from "@/components/hooks";
+import { api, mensajeError } from "@/lib/api";
+import { Respaldo } from "@/lib/data";
 import { Eye, FileText, Trash2, Upload } from "lucide-react";
 
 export default function RespaldosPage() {
+  const { boletas } = useBoletas();
   const [respaldos, setRespaldos] = useState<Respaldo[]>([]);
   const [visor, setVisor] = useState<Respaldo | null>(null);
-  const [boletaId, setBoletaId] = useState("BOL-2026-001");
+  const [boletaId, setBoletaId] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [subiendo, setSubiendo] = useState(false);
 
-  useEffect(() => setRespaldos(getRespaldos()), []);
+  const cargar = () =>
+    api<Respaldo[]>("/respaldos").then(setRespaldos).catch((e) => setError(mensajeError(e)));
+  useEffect(() => {
+    cargar();
+  }, []);
 
-  const agregar = (files: FileList | null) => {
-    if (!files) return;
-    const nuevos: Respaldo[] = Array.from(files).map((f) => ({
-      id: crypto.randomUUID(),
-      boletaId,
-      nombre: f.name,
-      tipo: f.type,
-      url: URL.createObjectURL(f),
-      fecha: new Date().toISOString().slice(0, 10),
-    }));
-    const next = [...respaldos, ...nuevos];
-    setRespaldos(next);
-    saveRespaldos(next);
+  // Boleta destino por defecto: la más reciente
+  useEffect(() => {
+    if (!boletaId && boletas.length) setBoletaId(boletas[0].id);
+  }, [boletas, boletaId]);
+
+  const agregar = async (files: FileList | null) => {
+    if (!files?.length || !boletaId) return;
+    setError(null);
+    setSubiendo(true);
+    try {
+      const fd = new FormData();
+      fd.append("boletaId", boletaId);
+      Array.from(files).forEach((f) => fd.append("archivos", f));
+      await api("/respaldos", { method: "POST", body: fd });
+      await cargar();
+    } catch (e) {
+      setError(mensajeError(e));
+    } finally {
+      setSubiendo(false);
+    }
   };
 
-  const eliminar = (id: string) => {
-    const next = respaldos.filter((r) => r.id !== id);
-    setRespaldos(next);
-    saveRespaldos(next);
+  const eliminar = async (id: string) => {
+    if (!window.confirm("¿Eliminar este respaldo? Esta acción no se puede deshacer.")) return;
+    setError(null);
+    try {
+      await api(`/respaldos/${id}`, { method: "DELETE" });
+      setRespaldos((prev) => prev.filter((r) => r.id !== id));
+    } catch (e) {
+      setError(mensajeError(e));
+    }
   };
 
   const esImagen = (r: Respaldo) => r.tipo.startsWith("image/");
@@ -42,22 +63,32 @@ export default function RespaldosPage() {
         <p className="text-sm text-slate-500">Adjunta, previsualiza y elimina archivos sustento (PDF, imágenes).</p>
       </div>
 
+      {error && (
+        <div role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</div>
+      )}
+
       <Card>
+        <div className="mb-4 max-w-xs">
+          <Select label="Boleta a la que se asociarán" value={boletaId} onChange={(e) => setBoletaId(e.target.value)}>
+            {boletas.map((b) => <option key={b.id} value={b.id}>{b.id} · {b.tipoError}</option>)}
+          </Select>
+        </div>
         <label className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-paypal-border py-12 text-slate-400 transition hover:border-paypal-blue hover:text-paypal-blue">
           <Upload size={32} />
-          <span className="text-sm font-bold">Arrastra o haz clic para adjuntar archivos</span>
-          <span className="text-xs">Formatos aceptados: PDF, PNG, JPG</span>
+          <span className="text-sm font-bold">{subiendo ? "Subiendo…" : "Haz clic para adjuntar archivos"}</span>
+          <span className="text-xs">Formatos aceptados: PDF, PNG, JPG, WEBP · máx. 10 MB por archivo</span>
           <input
             type="file"
             className="hidden"
             multiple
-            accept=".pdf,image/*"
-            onChange={(e) => agregar(e.target.files)}
+            disabled={subiendo || !boletaId}
+            accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/png,image/jpeg,image/webp"
+            onChange={(e) => {
+              agregar(e.target.files);
+              e.target.value = ""; // permite volver a elegir el mismo archivo
+            }}
           />
         </label>
-        <p className="mt-3 text-center text-xs text-slate-400">
-          Los archivos se asociarán a la boleta <span className="font-bold text-paypal-blue">{boletaId}</span>
-        </p>
       </Card>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
