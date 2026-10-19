@@ -9,12 +9,14 @@ export function Button({
   variant = "primary",
   className = "",
   type = "button",
+  disabled = false,
 }: {
   children: ReactNode;
   onClick?: () => void;
   variant?: "primary" | "secondary" | "ghost" | "danger";
   className?: string;
   type?: "button" | "submit";
+  disabled?: boolean;
 }) {
   const base =
     "inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold transition-all duration-150 disabled:opacity-50";
@@ -25,7 +27,7 @@ export function Button({
     danger: "bg-red-500 text-white hover:bg-red-600",
   };
   return (
-    <button type={type} onClick={onClick} className={`${base} ${styles[variant]} ${className}`}>
+    <button type={type} onClick={onClick} disabled={disabled} className={`${base} ${styles[variant]} ${className}`}>
       {children}
     </button>
   );

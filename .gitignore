@@ -1,0 +1,26 @@
+# Dependencias y compilados
+node_modules/
+.next/
+dist/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# Secretos y configuración local (NUNCA subir)
+.env
+.env.*
+!.env.example
+
+# Archivos subidos por los usuarios (respaldos)
+backend/uploads/
+
+# Sistema operativo y editores
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Registros
+*.log
+npm-debug.log*
