@@ -91,4 +91,29 @@ export class Respaldo {
   subidoPor: Usuario | null;
 }
 
-export const ENTITIES = [Usuario, Unidad, TipoError, Secuencia, Boleta, Respaldo];
+/**
+ * Historial de operaciones sobre las boletas (trazabilidad). Solo se inserta:
+ * no hay rutas para modificarlo ni borrarlo. Guarda el nombre y el rol del usuario
+ * en el momento de la acción, para que el registro se conserve aunque el usuario cambie.
+ */
+@Entity("historial_boletas")
+export class HistorialBoleta {
+  @PrimaryGeneratedColumn() id: number;
+  @Index() @Column({ name: "boleta_id" }) boletaId: string;
+  @ManyToOne(() => Boleta, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "boleta_id" })
+  boleta: Boleta;
+  /** Registro | Asignación | Cambio de estado */
+  @Column() accion: string;
+  @Column({ name: "estado_anterior", type: "varchar", nullable: true }) estadoAnterior: string | null;
+  @Column({ name: "estado_nuevo", type: "varchar", nullable: true }) estadoNuevo: string | null;
+  @Column({ type: "text", nullable: true }) motivo: string | null;
+  /** Detalle libre, por ejemplo el técnico asignado */
+  @Column({ type: "varchar", nullable: true }) detalle: string | null;
+  @Column({ name: "usuario_id", type: "int", nullable: true }) usuarioId: number | null;
+  @Column({ name: "usuario_nombre" }) usuarioNombre: string;
+  @Column({ name: "usuario_rol" }) usuarioRol: string;
+  @Index() @CreateDateColumn({ name: "created_at", type: "timestamptz" }) createdAt: Date;
+}
+
+export const ENTITIES = [Usuario, Unidad, TipoError, Secuencia, Boleta, Respaldo, HistorialBoleta];

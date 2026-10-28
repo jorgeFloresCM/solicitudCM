@@ -2,7 +2,7 @@ import "dotenv/config";
 import * as bcrypt from "bcryptjs";
 import { DataSource } from "typeorm";
 import { dataSourceOptions } from "./data-source";
-import { Boleta, Secuencia, TipoError, Unidad, Usuario } from "../entities";
+import { Boleta, HistorialBoleta, Secuencia, TipoError, Unidad, Usuario } from "../entities";
 
 const UNIDADES = [
   "Ventanilla de Ingreso",
@@ -81,6 +81,16 @@ async function main() {
         tecnicoId: tec?.id ?? null,
         createdAt: creada,
         resueltaAt: b.dias ? new Date(creada.getTime() + b.dias * 86_400_000) : null,
+      });
+      // Los datos de ejemplo parten con un único evento de registro (el historial real empieza al usarlo)
+      await ds.getRepository(HistorialBoleta).insert({
+        boletaId: `BOL-2026-${String(b.n).padStart(3, "0")}`,
+        accion: "Registro",
+        estadoNuevo: "Pendiente",
+        detalle: "Dato de ejemplo (seed)",
+        usuarioNombre: "Sistema",
+        usuarioRol: "Sistema",
+        createdAt: creada,
       });
     }
     await ds.getRepository(Secuencia).save({ anio: 2026, ultimo: BOLETAS.length });
