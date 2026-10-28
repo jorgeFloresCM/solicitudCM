@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   ShieldCheck, LayoutDashboard, Users, FilePlus2, Inbox,
-  BarChart3, FolderOpen, LogOut,
+  BarChart3, FolderOpen, LogOut, History,
 } from "lucide-react";
 import { Rol, Usuario } from "@/lib/data";
 import { api } from "@/lib/api";
@@ -14,9 +14,10 @@ import { SessionContext } from "@/components/hooks";
 const NAV: { href: string; label: string; icon: React.ReactNode; roles: Rol[] }[] = [
   { href: "/dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} />, roles: ["Administrador", "Jefe de Sistemas", "Directivo", "Encargado", "Solicitante", "Técnico", "Consulta"] },
   { href: "/usuarios", label: "Usuarios", icon: <Users size={18} />, roles: ["Administrador"] },
-  { href: "/boletas", label: "Nueva Boleta", icon: <FilePlus2 size={18} />, roles: ["Solicitante", "Administrador", "Encargado", "Consulta"] },
+  { href: "/boletas", label: "Nueva Boleta", icon: <FilePlus2 size={18} />, roles: ["Solicitante", "Encargado", "Consulta", "Técnico", "Jefe de Sistemas"] },
   { href: "/solicitudes", label: "Solicitudes", icon: <Inbox size={18} />, roles: ["Jefe de Sistemas", "Administrador", "Técnico"] },
   { href: "/reportes", label: "Reportes", icon: <BarChart3 size={18} />, roles: ["Encargado", "Jefe de Sistemas", "Directivo", "Administrador", "Consulta"] },
+  { href: "/trazabilidad", label: "Trazabilidad", icon: <History size={18} />, roles: ["Administrador", "Jefe de Sistemas", "Directivo"] },
   { href: "/respaldos", label: "Respaldos", icon: <FolderOpen size={18} />, roles: ["Solicitante", "Técnico", "Administrador"] },
 ];
 

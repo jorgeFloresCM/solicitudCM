@@ -56,7 +56,7 @@ export default function BoletasPage() {
 
       setOk(`✓ Boleta ${nueva.id} registrada correctamente.${avisoRespaldos}`);
       // Cada rol solo ve ciertas pantallas: la bandeja es para quienes atienden
-      const destino = me && ["Jefe de Sistemas", "Administrador", "Técnico"].includes(me.rol) ? "/solicitudes" : "/dashboard";
+      const destino = me && ["Jefe de Sistemas", "Técnico"].includes(me.rol) ? "/solicitudes" : "/dashboard";
       setTimeout(() => router.push(destino), avisoRespaldos ? 3500 : 1500);
     } catch (err) {
       setError(mensajeError(err));

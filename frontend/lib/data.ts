@@ -35,6 +35,19 @@ export interface Boleta {
   tecnicoId: number | null;
 }
 
+export interface EventoHistorial {
+  id: number;
+  boletaId: string;
+  accion: string;
+  estadoAnterior: string | null;
+  estadoNuevo: string | null;
+  motivo: string | null;
+  detalle: string | null;
+  usuario: string;
+  rol: string;
+  fecha: string;
+}
+
 export interface Respaldo {
   id: string;
   boletaId: string;

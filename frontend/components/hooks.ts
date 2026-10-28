@@ -44,7 +44,7 @@ export function useBoletas(filtros: FiltrosBoletas = {}) {
   }, [reload]);
 
   /** Asigna técnico y/o cambia el estado; reemplaza la boleta con lo que devuelve el servidor */
-  const actualizar = async (id: string, cambios: { tecnicoId?: number; estado?: EstadoBoleta }) => {
+  const actualizar = async (id: string, cambios: { tecnicoId?: number; estado?: EstadoBoleta; motivo?: string }) => {
     const nueva = await api<Boleta>(`/boletas/${id}`, { method: "PATCH", json: cambios });
     setBoletas((prev) => prev.map((b) => (b.id === id ? nueva : b)));
   };
