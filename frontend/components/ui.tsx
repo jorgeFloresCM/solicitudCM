@@ -91,6 +91,7 @@ const badgeColors: Record<string, string> = {
   Pendiente: "bg-amber-100 text-amber-800",
   Asignada: "bg-blue-100 text-paypal-blue",
   "En atención": "bg-indigo-100 text-indigo-700",
+  Observada: "bg-orange-100 text-orange-700",
   Resuelta: "bg-emerald-100 text-emerald-700",
   Alta: "bg-red-100 text-red-700",
   Media: "bg-amber-100 text-amber-800",
